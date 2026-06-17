@@ -375,5 +375,21 @@ class BookingApiTest extends TestCase
             ->assertJsonValidationErrors(['attendees.0.email']);
     }
 
+    /** Test that specific services (women's haircut) use hourly time slots */
+    public function test_womens_haircut_uses_hourly_slots(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId = Service::find(2)->id;
+        $response = $this->getJson('/api/calendar?service_id=' . $serviceId . '&date=2026-06-16');
+        $slots = collect($response->json('services.0.days.0.slots'))->pluck('start')->map(
+            fn (string $start) => Carbon::parse($start)->format('H:i')
+        );
+
+        $this->assertTrue($slots->contains('08:00'));
+        $this->assertTrue($slots->contains('09:00'));
+        $this->assertFalse($slots->contains('08:10'));
+    }
+
 
 }
