@@ -85,6 +85,13 @@ class SchedulingSeeder extends Seeder
             'name' => 'Cleaning break',
         ]);
 
+        ServiceBreak::create([
+            'service_id' => $service->id,
+            'start_time' => '17:00:00',
+            'end_time' => '17:30:00',
+            'name' => 'Coffee break',
+        ]);
+
         $publicHoliday = Carbon::today()->addDays(2);
 
         ServiceClosure::create([
