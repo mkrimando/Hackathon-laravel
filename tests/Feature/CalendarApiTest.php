@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Service;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\SeedsScheduling;
 use Tests\TestCase;
 
@@ -43,7 +42,6 @@ class CalendarApiTest extends TestCase
 
         $services = $response->json('services');
         $this->assertCount(2, $services);
-
         $mens = collect($services)->firstWhere('name', "Men's Haircut");
         $this->assertSame(30, $mens['duration_minutes']);
         $this->assertSame(10, $mens['slot_interval_minutes']);
@@ -68,7 +66,8 @@ class CalendarApiTest extends TestCase
     {
         $this->seedScheduling();
 
-        $response = $this->getJson('/api/calendar?service_id=1&date=2026-06-16');
+        $serviceId = Service::first()->id;
+        $response = $this->getJson("/api/calendar?service_id={$serviceId}&date=2026-06-16");
 
         $response->assertOk();
         $services = $response->json('services');
@@ -76,4 +75,5 @@ class CalendarApiTest extends TestCase
         $this->assertCount(1, $services[0]['days']);
         $this->assertSame('2026-06-16', $services[0]['days'][0]['date']);
     }
+    
 }
