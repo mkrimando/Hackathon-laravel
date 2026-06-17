@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InvalidSlotException;
 use App\Models\Booking;
-use App\Sevices\SlotAvailabilityService;
-use Illuminate\Http\Request;
+use App\Models\Service;
+use App\Services\SlotAvailabilityService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
 {
