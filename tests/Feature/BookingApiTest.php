@@ -356,7 +356,24 @@ class BookingApiTest extends TestCase
             ->assertJsonValidationErrors(['slot_start']);
     }
 
-    
+    /** Test that invalid attendee data (e.g., invalid email) is rejected */
+    public function test_invalid_attendee_payload_is_rejected(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId = Service::first()->id;
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId,
+            'slot_start' => '2026-06-16T08:00:00',
+            'attendees' => [
+                ['first_name' => 'Mark', 'last_name' => 'Rimando', 'email' => 'not-an-email'],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['attendees.0.email']);
+    }
 
 
 }
