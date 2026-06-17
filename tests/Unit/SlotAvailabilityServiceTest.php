@@ -22,6 +22,13 @@ class SlotAvailabilityServiceTest extends TestCase
         $this->service = app(SlotAvailabilityService::class);
     }
 
+    /**
+     * Ensure available slots honor the configured break between appointments.
+     *
+     * When a booking starts at 08:00 for the men's haircut service,
+     * there should not be a slot at 08:30 if the service requires
+     * a break between appointments, but 08:40 must remain available.
+     */
     public function test_mens_slots_respect_break_between_after_booking(): void
     {
         $this->seedScheduling();
@@ -49,6 +56,12 @@ class SlotAvailabilityServiceTest extends TestCase
         $this->assertTrue($slots->contains('08:40'));
     }
 
+    /**
+     * Confirm that the booking window ends exactly seven days from today.
+     *
+     * The available booking window should be computed based on the service
+     * configuration and the current mocked date set by SeedsScheduling.
+     */
     public function test_booking_window_end_is_seven_days_from_today(): void
     {
         $this->seedScheduling();
