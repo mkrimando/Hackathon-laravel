@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Service;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\SeedsScheduling;
 use Tests\TestCase;
@@ -380,7 +381,7 @@ class BookingApiTest extends TestCase
     {
         $this->seedScheduling();
 
-        $serviceId = Service::find(2)->id;
+        $serviceId = Service::query()->where('name', "Women's Haircut")->firstOrFail()->id;
         $response = $this->getJson('/api/calendar?service_id=' . $serviceId . '&date=2026-06-16');
         $slots = collect($response->json('services.0.days.0.slots'))->pluck('start')->map(
             fn (string $start) => Carbon::parse($start)->format('H:i')
@@ -389,6 +390,35 @@ class BookingApiTest extends TestCase
         $this->assertTrue($slots->contains('08:00'));
         $this->assertTrue($slots->contains('09:00'));
         $this->assertFalse($slots->contains('08:10'));
+    }
+
+    /** Test that different services have independent booking availability */
+    public function test_services_are_independent(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId1 = Service::query()->where('name', "Men's Haircut")->firstOrFail()->id;
+        $serviceId2 = Service::query()->where('name', "Women's Haircut")->firstOrFail()->id;
+
+        $this->postJson('/api/bookings', [
+            'service_id' => $serviceId1,
+            'slot_start' => '2026-06-16T08:00:00',
+            'attendees' => [
+                ['first_name' => 'A', 'last_name' => 'One', 'email' => 'a@example.com'],
+                ['first_name' => 'B', 'last_name' => 'Two', 'email' => 'b@example.com'],
+                ['first_name' => 'C', 'last_name' => 'Three', 'email' => 'c@example.com'],
+            ],
+        ])->assertCreated();
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId2,
+            'slot_start' => '2026-06-16T08:00:00',
+            'attendees' => [
+                ['first_name' => 'D', 'last_name' => 'Four', 'email' => 'd@example.com'],
+            ],
+        ]);
+
+        $response->assertCreated();
     }
 
 
