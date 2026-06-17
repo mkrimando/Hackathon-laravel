@@ -63,4 +63,17 @@ class CalendarApiTest extends TestCase
         $this->assertFalse($slotStarts->contains('07:00'));
         $this->assertFalse($slotStarts->contains('12:15'));
     }
+
+    public function test_calendar_can_filter_by_service_and_date(): void
+    {
+        $this->seedScheduling();
+
+        $response = $this->getJson('/api/calendar?service_id=1&date=2026-06-16');
+
+        $response->assertOk();
+        $services = $response->json('services');
+        $this->assertCount(1, $services);
+        $this->assertCount(1, $services[0]['days']);
+        $this->assertSame('2026-06-16', $services[0]['days'][0]['date']);
+    }
 }
