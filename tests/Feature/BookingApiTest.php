@@ -304,4 +304,25 @@ class BookingApiTest extends TestCase
     }
 
 
+
+    /** Test that booking beyond the maximum advance booking period is rejected */
+    public function test_booking_beyond_max_days_is_rejected(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId = Service::first()->id;
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId,
+            'slot_start' => '2026-06-24T08:00:00',
+            'attendees' => [
+                ['first_name' => 'Mark', 'last_name' => 'Rimando', 'email' => 'mark@example.com'],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['slot_start']);
+    }
+
+
 }
