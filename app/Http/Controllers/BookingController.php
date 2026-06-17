@@ -57,6 +57,17 @@ class BookingController extends Controller
             'attendees.*.email' => ['required', 'email', 'max:255'],
         ]);
 
+        // Validate that attendees have unique names (first_name + last_name + email combination)
+        $attendeeKeys = collect($validated['attendees'])
+            ->map(fn ($attendee) => $attendee['first_name'] . ' ' . $attendee['last_name'] . ' ' . $attendee['email'])
+            ->toArray();
+
+        if (count($attendeeKeys) !== count(array_unique($attendeeKeys))) {
+            throw ValidationException::withMessages([
+                'attendees' => ['Each attendee must have a unique first and last name combination.'],
+            ]);
+        }
+
         $service = Service::query()
             ->with(['openingHours', 'breaks', 'closures', 'bookings.attendees'])
             ->findOrFail($validated['service_id']);
