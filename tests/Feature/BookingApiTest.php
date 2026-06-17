@@ -243,4 +243,25 @@ class BookingApiTest extends TestCase
             ->assertJsonValidationErrors(['slot_start']);
     }
 
+
+    /** Test that booking during cleaning break is rejected */
+    public function test_booking_during_cleaning_break_is_rejected(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId = Service::first()->id;
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId,
+            'slot_start' => '2026-06-16T15:30:00',
+            'attendees' => [
+                ['first_name' => 'Mark', 'last_name' => 'Rimando', 'email' => 'mark@example.com'],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['slot_start']);
+    }
+
+
 }
