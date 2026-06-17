@@ -14,11 +14,10 @@ class BookingApiTest extends TestCase
     use SeedsScheduling;
 
     /**
-     * Ensure a user can successfully create a single-person booking.
+     * User story: book an appointment for a single person.
      *
-     * This test seeds the scheduling data, selects a seeded service, and
-     * posts a booking request for one attendee. It verifies the response
-     * returns HTTP 201 and the booking is persisted with the correct attendee.
+     * This test verifies the API accepts a valid booking request for one
+     * attendee, persists the booking, and returns a created response.
      */
     public function test_user_can_book_an_appointment_for_one_person(): void
     {
@@ -52,10 +51,10 @@ class BookingApiTest extends TestCase
     }
 
     /**
-     * Verify a single booking can accommodate multiple attendees in one request.
+     * User story: book an appointment for multiple people at once.
      *
-     * This test creates a booking for three attendees simultaneously and confirms
-     * the API persists all attendees correctly within a single booking record.
+     * This test ensures a single booking can include several attendees and
+     * that all attendee details are saved correctly.
      */
     public function test_user_can_book_multiple_people_in_one_request(): void
     {
@@ -91,10 +90,11 @@ class BookingApiTest extends TestCase
 
 
     /**
-     * Confirm that the same parent email can be reused for different children.
+     * Business story: allow a person to book multiple appointments without
+     * uniqueness restrictions on email, while still requiring distinct attendee
+     * names for separate people.
      *
-     * This scenario covers a father booking two kids with identical contact email
-     * while keeping first and last names distinct.
+     * This test covers a parent booking two children using the same contact email.
      */
     public function test_same_email_different_children_names_is_allowed(): void
     {
@@ -174,7 +174,12 @@ class BookingApiTest extends TestCase
     }
 
 
-    /** Test that booking at a time not aligned with service slots is rejected */
+    /**
+     * Business story: reject bookings that do not fit into defined slot intervals.
+     *
+     * This test ensures a request for 08:02 is invalid because it does not align
+     * with the service slot grid.
+     */
     public function test_booking_at_unaligned_time_is_rejected(): void
     {
         $this->seedScheduling();
@@ -225,6 +230,39 @@ class BookingApiTest extends TestCase
             'slot_start' => '2026-06-16T15:30:00',
             'attendees' => [
                 ['first_name' => 'Mark', 'last_name' => 'Rimando', 'email' => 'mark@example.com'],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['slot_start']);
+    }
+
+    /**
+     * Test that booking is rejected when it falls within the cleanup break after a prior appointment.
+     *
+     * Business story: a configured break between appointments must make the next slot invalid.
+     */
+    public function test_booking_during_break_between_appointments_is_rejected(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId = Service::query()->where('name', "Men's Haircut")->firstOrFail()->id;
+
+        $firstBooking = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId,
+            'slot_start' => '2026-06-16T08:00:00',
+            'attendees' => [
+                ['first_name' => 'John', 'last_name' => 'Doe', 'email' => 'john@example.com'],
+            ],
+        ]);
+
+        $firstBooking->assertCreated();
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId,
+            'slot_start' => '2026-06-16T08:30:00',
+            'attendees' => [
+                ['first_name' => 'Jane', 'last_name' => 'Doe', 'email' => 'jane@example.com'],
             ],
         ]);
 
@@ -294,7 +332,12 @@ class BookingApiTest extends TestCase
     }
 
 
-    /** Test that a fully booked time slot cannot accept additional bookings */
+    /**
+     * Business story: reject slots that are booked out.
+     *
+     * This test verifies that when the maximum number of clients has already
+     * been booked for a slot, further booking attempts fail.
+     */
     public function test_fully_booked_slot_is_rejected(): void
     {
         $this->seedScheduling();
@@ -325,7 +368,11 @@ class BookingApiTest extends TestCase
             ->assertJsonValidationErrors(['slot_start']);
     }
 
-    /** Test that invalid attendee data (e.g., invalid email) is rejected */
+    /**
+     * User story: validate personal details for each attendee.
+     *
+     * This test ensures the API rejects invalid attendee data such as a malformed email.
+     */
     public function test_invalid_attendee_payload_is_rejected(): void
     {
         $this->seedScheduling();

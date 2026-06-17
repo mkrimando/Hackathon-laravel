@@ -10,17 +10,17 @@ use Tests\TestCase;
 
 class CalendarApiTest extends TestCase
 {
-    
+
     use RefreshDatabase;
     use SeedsScheduling;
-    
+
     /**
-     * Verify the calendar payload contains both services with full schedule data.
+     * User story: open the scheduling page and see all available slots for the day.
      *
-     * This test ensures the API response includes service configuration fields,
-     * opening hours, breaks, closures, and computed daily slots for the seeded schedule.
+     * This test validates the calendar API returns service configuration, opening
+     * hours, breaks, closures, and available slots for each service.
      */
-    public function test_calendar_returns_services_with_configuration_and_slots(): void 
+    public function test_calendar_returns_services_with_configuration_and_slots(): void
     {
         $this->seedScheduling();
 
@@ -69,10 +69,10 @@ class CalendarApiTest extends TestCase
     }
 
     /**
-     * Confirm the calendar can filter by a single service and a specific date.
+     * Business story: allow users to view available slots for a specific service
+     * on a chosen date.
      *
-     * The test validates service filtering returns one service and only one day
-     * for the requested date in the seeded schedule.
+     * This test checks that the calendar API can filter by service and date.
      */
     public function test_calendar_can_filter_by_service_and_date(): void
     {
@@ -87,12 +87,12 @@ class CalendarApiTest extends TestCase
         $this->assertCount(1, $services[0]['days']);
         $this->assertSame('2026-06-16', $services[0]['days'][0]['date']);
     }
-    
+
     /**
-     * Ensure days with no availability are excluded from the calendar.
+     * Business story: exclude non-bookable dates from the calendar view.
      *
-     * This test covers both Sunday closure and a seeded public holiday,
-     * verifying those dates are omitted from the returned service days.
+     * This test verifies that Sunday and the seeded public holiday do not
+     * appear as available days in the calendar.
      */
     public function test_calendar_excludes_sunday_and_public_holiday(): void
     {
@@ -124,5 +124,30 @@ class CalendarApiTest extends TestCase
 
         $this->assertTrue($slots->contains('10:00'));
         $this->assertFalse($slots->contains('08:00'));
+    }
+
+    /**
+     * Verify the calendar returns only valid slots for a specific date.
+     *
+     * User story: select a date and see all available slots for that day.
+     */
+    public function test_calendar_returns_available_slots_for_specific_date(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId = Service::query()->where('name', "Men's Haircut")->firstOrFail()->id;
+        $response = $this->getJson("/api/calendar?service_id={$serviceId}&date=2026-06-16");
+
+        $response->assertOk();
+        $services = $response->json('services');
+        $this->assertCount(1, $services);
+
+        $slots = collect($services[0]['days'][0]['slots'])->pluck('start')->map(
+            fn (string $start) => Carbon::parse($start)->format('H:i')
+        );
+
+        $this->assertTrue($slots->contains('08:00'));
+        $this->assertFalse($slots->contains('07:00'));
+        $this->assertFalse($slots->contains('12:15'));
     }
 }
