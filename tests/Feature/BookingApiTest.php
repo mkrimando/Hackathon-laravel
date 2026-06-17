@@ -91,12 +91,12 @@ class BookingApiTest extends TestCase
 
 
     /**
-     * Confirm that the system allows unique names even when email addresses differ.
+     * Confirm that the same parent email can be reused for different children.
      *
-     * This test verifies that multiple attendees with distinct names can book
-     * under the same service and time slot, even if their email addresses are different.
+     * This scenario covers a father booking two kids with identical contact email
+     * while keeping first and last names distinct.
      */
-    public function test_duplicate_person_details_are_allowed(): void
+    public function test_same_email_different_children_names_is_allowed(): void
     {
         $this->seedScheduling();
 
@@ -107,46 +107,14 @@ class BookingApiTest extends TestCase
             'slot_start' => '2026-06-16T08:00:00',
             'attendees' => [
                 [
-                    'first_name' => 'Mark',
+                    'first_name' => 'Liam',
                     'last_name' => 'Rimando',
-                    'email' => 'mark@example.com',
+                    'email' => 'parent@example.com',
                 ],
                 [
-                    'first_name' => 'John',
+                    'first_name' => 'Emma',
                     'last_name' => 'Rimando',
-                    'email' => 'mark@example.com',
-                ],
-            ],
-        ]);
-
-        $response->assertCreated();
-    }
-
-    /**
-     * Verify that the system allows unique person details when names differ.
-     *
-     * This test ensures that attendees with different names can book successfully,
-     * even if their email addresses are not the same.
-     */
-    public function test_unique_person_details_are_allowed(): void
-    {
-        $this->seedScheduling();
-
-        $serviceId = Service::first()->id;
-
-        $response = $this->postJson('/api/bookings', [
-            'service_id' => $serviceId,
-            'slot_start' => '2026-06-16T08:00:00',
-            'attendees' => [
-                [
-                    'first_name' => 'Mark',
-                    'last_name' => 'Rimando',
-                    'email' => 'mark@example.com',
-                ],
-                [
-                    'first_name' => 'John',
-                    'last_name' => 'Rimando',
-                    'email' => 'mark1@example.com',
+                    'email' => 'parent@example.com',
                 ],
             ],
         ]);

@@ -57,12 +57,12 @@ class BookingController extends Controller
             'attendees.*.email' => ['required', 'email', 'max:255'],
         ]);
 
-        // Validate that attendees have unique names (first_name + last_name + email combination)
-        $attendeeKeys = collect($validated['attendees'])
-            ->map(fn ($attendee) => $attendee['first_name'] . ' ' . $attendee['last_name'] . ' ' . $attendee['email'])
+        // Validate that attendees have unique names; the same email may be reused
+        $attendeeNameKeys = collect($validated['attendees'])
+            ->map(fn ($attendee) => mb_strtolower(trim($attendee['first_name'])) . '|' . mb_strtolower(trim($attendee['last_name'])))
             ->toArray();
 
-        if (count($attendeeKeys) !== count(array_unique($attendeeKeys))) {
+        if (count($attendeeNameKeys) !== count(array_unique($attendeeNameKeys))) {
             throw ValidationException::withMessages([
                 'attendees' => ['Each attendee must have a unique first and last name combination.'],
             ]);
