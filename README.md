@@ -1,66 +1,188 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Backend Hackathon: Time Scheduling REST API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel backend API for service scheduling, availability, and appointment booking.
 
-## About Laravel
+This repository implements the hackathon requirements using a SQL database, Eloquent ORM, and Laravel.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Project Summary
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The API supports:
+- service-specific bookable schedules
+- daily opening hours and service breaks
+- planned closures and holiday blocks
+- appointment duration, slot interval, and cleanup time
+- configurable maximum clients per slot
+- multiple attendees in one booking
+- validation of invalid and unavailable slots
+- calendar payload for SPA consumption
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Tech Stack
 
-## Learning Laravel
+- PHP 8.x
+- Laravel 10
+- Eloquent ORM
+- MySQL-compatible SQL database
+- PHPUnit for automated tests
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requirements Covered
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- SQL database with related tables and foreign keys
+- REST API only (no frontend)
+- GET endpoint for calendar data and slot availability
+- POST endpoint for booking one or more people for a single slot
+- validation of booking schema and slot rules
+- support for multiple services with independent schedules
+- different opening hours per weekday
+- configurable bookable window length
+- support for break windows and planned closures
+- support for multiple clients per slot
+- attendee details per person
+- no uniqueness restriction on attendee details across bookings
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## API Endpoints
 
-## Laravel Sponsors
+### GET /api/calendar
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+Returns all calendar data needed to display service availability.
 
-### Premium Partners
+Query parameters:
+- `service_id` (optional)
+- `date` (optional, `YYYY-MM-DD`)
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+Response includes:
+- service configuration
+- booking window
+- opening hours
+- breaks
+- closures
+- available slots for the requested date or date range
 
-## Contributing
+### POST /api/bookings
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Creates a booking for a single slot and one or more attendees.
 
-## Code of Conduct
+Request body:
+- `service_id` (integer, required)
+- `slot_start` (datetime string, required)
+- `attendees` (array, required)
+  - `first_name` (string)
+  - `last_name` (string)
+  - `email` (email string)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Validation rules include:
+- service exists
+- slot lies within opening hours
+- slot aligns with the configured interval
+- slot does not fall in a break or closure
+- slot has available capacity
+- attendee details are provided for each person
+- attendee names must be unique within the booking
 
-## Security Vulnerabilities
+## Database Schema
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+The project uses normalized tables with foreign keys.
+
+Main models and tables:
+- `services`
+- `service_opening_hours`
+- `service_breaks`
+- `service_closures`
+- `bookings`
+- `booking_attendees`
+
+Relationships:
+- `Service` has many `ServiceOpeningHour`
+- `Service` has many `ServiceBreak`
+- `Service` has many `ServiceClosure`
+- `Service` has many `Booking`
+- `Booking` has many `BookingAttendee`
+
+## Application Architecture
+
+- `routes/api.php` — public API routes
+- `app/Http/Controllers/CalendarController.php` — calendar endpoint
+- `app/Http/Controllers/BookingController.php` — booking creation
+- `app/Services/SlotAvailabilityService.php` — slot generation and validation logic
+- `app/Models/` — service and booking models
+- `database/seeders/SchedulingSeeder.php` — seeded schedule data
+- `tests/Feature/` — API feature tests
+- `tests/Unit/` — business logic tests
+
+## Seed Data Configuration
+
+The seeded schedule matches the hackathon requirements:
+
+### Men's Haircut
+- Sunday off
+- Monday–Friday: 08:00–20:00
+- Saturday: 10:00–22:00
+- Lunch break: 12:00–13:00
+- Cleaning break: 15:00–16:00
+- Slot interval: 10 minutes
+- Cleanup between bookings: 5 minutes
+- Max clients per slot: 3
+- Public holiday on the third day from now
+
+### Women's Haircut
+- Sunday off
+- Monday–Friday: 08:00–20:00
+- Saturday: 10:00–22:00
+- Lunch break: 12:00–13:00
+- Cleaning break: 15:00–16:00
+- Slot interval: 60 minutes
+- Cleanup between bookings: 10 minutes
+- Max clients per slot: 3
+- Public holiday on the third day from now
+
+## Booking Validation Examples
+
+The API rejects:
+- booking at `07:00` before opening hours
+- booking at `08:02` because it does not align with the slot interval
+- booking at `12:15` during a lunch break
+- booking during a planned closure
+- booking when the slot is fully booked
+
+## How to Run Locally
+
+1. Install PHP dependencies:
+   ```bash
+   composer install
+   ```
+2. Install frontend packages if needed:
+   ```bash
+   npm install
+   ```
+3. Copy environment settings:
+   ```bash
+   cp .env.example .env
+   ```
+4. Configure database credentials in `.env`
+5. Run migrations and seed the database:
+   ```bash
+   php artisan migrate --seed
+   ```
+6. Start the development server:
+   ```bash
+   php artisan serve
+   ```
+
+## Automated Tests
+
+Run the full test suite with:
+
+```bash
+php artisan test
+```
+
+This ensures booking and calendar behavior is covered and edge cases are validated.
+
+## Notes
+
+- This project is backend-only.
+- The API is designed to be consumed by an SPA or mobile frontend.
+- All schedule rules and capacity logic run on the backend, not in the client.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT
