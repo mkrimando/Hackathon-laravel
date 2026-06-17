@@ -87,4 +87,18 @@ class CalendarApiTest extends TestCase
         $this->assertFalse($dates->contains('2026-06-21'));
         $this->assertFalse($dates->contains('2026-06-18'));
     }
+
+    public function test_saturday_uses_later_opening_hours(): void
+    {
+        $this->seedScheduling();
+
+        $response = $this->getJson('/api/calendar?date=2026-06-20');
+        $mens = collect($response->json('services'))->firstWhere('name', "Men's Haircut");
+        $slots = collect($mens['days'][0]['slots'])->pluck('start')->map(
+            fn (string $start) => Carbon::parse($start)->format('H:i')
+        );
+
+        $this->assertTrue($slots->contains('10:00'));
+        $this->assertFalse($slots->contains('08:00'));
+    }
 }
