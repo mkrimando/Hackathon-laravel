@@ -76,4 +76,15 @@ class CalendarApiTest extends TestCase
         $this->assertSame('2026-06-16', $services[0]['days'][0]['date']);
     }
     
+    public function test_calendar_excludes_sunday_and_public_holiday(): void
+    {
+        $this->seedScheduling();
+
+        $response = $this->getJson('/api/calendar');
+        $mens = collect($response->json('services'))->firstWhere('name', "Men's Haircut");
+        $dates = collect($mens['days'])->pluck('date');
+
+        $this->assertFalse($dates->contains('2026-06-21'));
+        $this->assertFalse($dates->contains('2026-06-18'));
+    }
 }
