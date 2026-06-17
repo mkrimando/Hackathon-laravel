@@ -43,6 +43,13 @@ class SchedulingSeeder extends Seeder
         ]);
 
         $this->seedSharedSchedule($service);
+
+        ServiceClosure::create([
+            'service_id' => $service->id,
+            'start_datetime' => Carbon::today()->addDays(4)->copy()->startOfDay(),
+            'end_datetime' => Carbon::today()->addDays(4)->copy()->endOfDay(),
+            'reason' => 'Hair expert leave',
+        ]);
     }
 
     private function seedSharedSchedule(Service $service): void

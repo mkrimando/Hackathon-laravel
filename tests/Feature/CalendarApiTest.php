@@ -127,6 +127,23 @@ class CalendarApiTest extends TestCase
     }
 
     /**
+     * Business story: service-specific planned closures should remove availability
+     * only for the affected service.
+     */
+    public function test_calendar_hides_service_specific_closure_slots(): void
+    {
+        $this->seedScheduling();
+
+        $womenServiceId = Service::query()->where('name', "Women's Haircut")->firstOrFail()->id;
+        $response = $this->getJson("/api/calendar?service_id={$womenServiceId}&date=2026-06-20");
+
+        $response->assertOk();
+        $services = $response->json('services');
+        $this->assertCount(1, $services);
+        $this->assertSame(0, count($services[0]['days']));
+    }
+
+    /**
      * Verify the calendar returns only valid slots for a specific date.
      *
      * User story: select a date and see all available slots for that day.

@@ -310,6 +310,42 @@ class BookingApiTest extends TestCase
     }
 
 
+    /**
+     * Business story: support planned off-date closures that are service specific.
+     *
+     * This test verifies that Women's Haircut is closed on the leave date while
+     * Men's Haircut remains bookable for the same slot.
+     */
+    public function test_service_specific_closure_blocks_only_targeted_service(): void
+    {
+        $this->seedScheduling();
+
+        $womenServiceId = Service::query()->where('name', "Women's Haircut")->firstOrFail()->id;
+        $mensServiceId = Service::query()->where('name', "Men's Haircut")->firstOrFail()->id;
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $womenServiceId,
+            'slot_start' => '2026-06-20T10:00:00',
+            'attendees' => [
+                ['first_name' => 'Sarah', 'last_name' => 'Lee', 'email' => 'sarah@example.com'],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['slot_start']);
+
+        $bookingResponse = $this->postJson('/api/bookings', [
+            'service_id' => $mensServiceId,
+            'slot_start' => '2026-06-20T10:00:00',
+            'attendees' => [
+                ['first_name' => 'Mike', 'last_name' => 'Lee', 'email' => 'mike@example.com'],
+            ],
+        ]);
+
+        $bookingResponse->assertCreated();
+    }
+
+
     /** Test that booking on a Sunday is rejected */
     public function test_booking_on_sunday_is_rejected(): void
     {
