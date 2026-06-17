@@ -73,8 +73,7 @@ class SlotAvailabilityService
                 continue;
             }
 
-            $key = $slotStart->format('Y-m-d H:i:s');
-            $booked = $bookingCounts[$key] ?? 0;
+            $booked = $this->bookedCountForSlot($service, $slotStart, $bookingCounts);
             $available = $service->max_clients_per_slot - $booked;
 
             if ($available <= 0) {
@@ -145,8 +144,7 @@ class SlotAvailabilityService
             throw new InvalidSlotException('The requested slot falls within a break between appointments.');
         }
 
-        $key = $slotStart->format('Y-m-d H:i:s');
-        $booked = $bookingCounts[$key] ?? 0;
+        $booked = $this->bookedCountForSlot($service, $slotStart, $bookingCounts);
 
         if ($booked + $attendeeCount > $service->max_clients_per_slot) {
             throw new InvalidSlotException('The requested slot is fully booked.');
@@ -274,11 +272,70 @@ class SlotAvailabilityService
             $cleanupEnd = $cleanupStart->copy()->addMinutes($service->break_between_minutes);
 
             if ($slotStartCarbon->gte($cleanupStart) && $slotStartCarbon->lt($cleanupEnd)) {
+                if ($this->hasExtendedBookingCoverageAt($service, $slotStartCarbon, $bookingCounts, $bookedSlotKey)) {
+                    continue;
+                }
+
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * @param  array<string, int>  $bookingCounts
+     */
+    private function hasExtendedBookingCoverageAt(
+        Service $service,
+        Carbon $slotStart,
+        array $bookingCounts,
+        string $excludeBookedSlotKey
+    ): bool {
+        foreach ($bookingCounts as $bookedSlotKey => $count) {
+            if ($count <= 0 || $bookedSlotKey === $excludeBookedSlotKey) {
+                continue;
+            }
+
+            $bookedStart = Carbon::createFromFormat('Y-m-d H:i:s', $bookedSlotKey);
+            $bookedEnd = $bookedStart->copy()->addMinutes(
+                $service->duration_minutes + $service->break_between_minutes
+            );
+
+            if ($slotStart->gte($bookedStart) && $slotStart->lt($bookedEnd)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Count attendees whose appointment overlaps this slot's duration.
+     *
+     * @param  array<string, int>  $bookingCounts
+     */
+    private function bookedCountForSlot(
+        Service $service,
+        CarbonInterface $slotStart,
+        array $bookingCounts
+    ): int {
+        $slotStartCarbon = Carbon::parse($slotStart);
+        $slotEnd = $slotStartCarbon->copy()->addMinutes($service->duration_minutes);
+        $booked = 0;
+
+        foreach ($bookingCounts as $bookedSlotKey => $count) {
+            $bookedStart = Carbon::createFromFormat('Y-m-d H:i:s', $bookedSlotKey);
+            $bookedEnd = $bookedStart->copy()->addMinutes(
+                $service->duration_minutes + $service->break_between_minutes
+            );
+
+            if ($this->periodsOverlap($slotStartCarbon, $slotEnd, $bookedStart, $bookedEnd)) {
+                $booked += $count;
+            }
+        }
+
+        return $booked;
     }
 
     /**

@@ -491,5 +491,75 @@ class BookingApiTest extends TestCase
         $response->assertCreated();
     }
 
+    /**
+     * Business story: staggered bookings within one appointment duration share capacity.
+     *
+     * When an earlier slot is partially booked and a later overlapping slot is also
+     * booked, the calendar must hide the earlier slot once combined capacity is full.
+     */
+    public function test_overlapping_slot_bookings_reduce_earlier_slot_availability(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId1 = Service::query()->where('name', "Men's Haircut")->firstOrFail()->id;
+
+        $this->postJson('/api/bookings', [
+            'service_id' => $serviceId1,
+            'slot_start' => '2026-06-16T08:00:00',
+            'attendees' => [
+                ['first_name' => 'A', 'last_name' => 'One', 'email' => 'a@example.com'],
+            ],
+        ])->assertCreated();
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId1,
+            'slot_start' => '2026-06-16T08:10:00',
+            'attendees' => [
+                ['first_name' => 'B', 'last_name' => 'Two', 'email' => 'b@example.com'],
+            ],
+        ]);
+
+        $response->assertCreated();
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId1,
+            'slot_start' => '2026-06-16T08:20:00',
+            'attendees' => [
+                ['first_name' => 'C', 'last_name' => 'Three', 'email' => 'c@example.com'],
+            ],
+        ]);
+
+        $response->assertCreated();
+
+        $response = $this->getJson("/api/calendar?service_id={$serviceId1}&date=2026-06-16");
+        $slots = collect($response->json('services.0.days.0.slots'))->pluck('start')->map(
+            fn (string $start) => Carbon::parse($start)->format('H:i')
+        );
+
+        $this->assertFalse($slots->contains('08:00'));
+        $this->assertFalse($slots->contains('08:10'));
+        $this->assertFalse($slots->contains('08:20'));
+        $this->assertFalse($slots->contains('08:30'));
+        $this->assertTrue($slots->contains('08:40'));
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId1,
+            'slot_start' => '2026-06-16T08:40:00',
+            'attendees' => [
+                ['first_name' => 'D', 'last_name' => 'Four', 'email' => 'd@example.com'],
+            ],
+        ]);
+
+        $response->assertCreated();
+
+        $response = $this->getJson("/api/calendar?service_id={$serviceId1}&date=2026-06-16");
+        $slots = collect($response->json('services.0.days.0.slots'))->pluck('start')->map(
+            fn (string $start) => Carbon::parse($start)->format('H:i')
+        );
+
+        $this->assertFalse($slots->contains('08:40'));
+        $this->assertTrue($slots->contains('08:50'));
+    }
+
 
 }
