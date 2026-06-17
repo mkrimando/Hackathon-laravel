@@ -325,4 +325,38 @@ class BookingApiTest extends TestCase
     }
 
 
+    /** Test that a fully booked time slot cannot accept additional bookings */
+    public function test_fully_booked_slot_is_rejected(): void
+    {
+        $this->seedScheduling();
+
+        $serviceId = Service::first()->id;
+
+        $payload = [
+            'service_id' => $serviceId,
+            'slot_start' => '2026-06-16T08:00:00',
+            'attendees' => [
+                ['first_name' => 'A', 'last_name' => 'One', 'email' => 'a@example.com'],
+                ['first_name' => 'B', 'last_name' => 'Two', 'email' => 'b@example.com'],
+                ['first_name' => 'C', 'last_name' => 'Three', 'email' => 'c@example.com'],
+            ],
+        ];
+
+        $this->postJson('/api/bookings', $payload)->assertCreated();
+
+        $response = $this->postJson('/api/bookings', [
+            'service_id' => $serviceId,
+            'slot_start' => '2026-06-16T08:00:00',
+            'attendees' => [
+                ['first_name' => 'D', 'last_name' => 'Four', 'email' => 'd@example.com'],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['slot_start']);
+    }
+
+    
+
+
 }
